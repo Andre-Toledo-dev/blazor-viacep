@@ -1,0 +1,112 @@
+
+@page "/viacep"
+@rendermode InteractiveServer
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Consulta ViaCEP</PageTitle>
+
+<div class="container mt-5">
+    <h2>Consulta de CEP</h2>
+    <p>Digite um CEP para consultar o endereço.</p>
+
+    <div class="input-group mb-3">
+        <input class="form-control"
+               placeholder="Ex: 30140071"
+               maxlength="9"
+               @bind="cep" />
+
+        <button class="btn btn-primary"
+                @onclick="BuscarCep"
+                disabled="@carregando">
+            Buscar
+        </button>
+    </div>
+
+    @if (carregando)
+    {
+        <p>Consultando CEP...</p>
+    }
+
+    @if (!string.IsNullOrEmpty(erro))
+    {
+        <div class="alert alert-danger">
+            @erro
+        </div>
+    }
+
+    @if (endereco != null)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4>Endereço encontrado</h4>
+            </div>
+
+            <div class="card-body">
+                <p><b>CEP:</b> @endereco.Cep</p>
+                <p><b>Logradouro:</b> @endereco.Logradouro</p>
+                <p><b>Complemento:</b> @endereco.Complemento</p>
+                <p><b>Bairro:</b> @endereco.Bairro</p>
+                <p><b>Cidade:</b> @endereco.Localidade</p>
+                <p><b>Estado:</b> @endereco.Uf</p>
+                <p><b>DDD:</b> @endereco.Ddd</p>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string cep = "";
+    private Endereco? endereco;
+    private string erro = "";
+    private bool carregando = false;
+
+    private async Task BuscarCep()
+    {
+        erro = "";
+        endereco = null;
+
+        string cepLimpo = new string(
+            cep.Where(char.IsDigit).ToArray());
+
+        if (cepLimpo.Length != 8)
+        {
+            erro = "Digite um CEP válido com 8 números.";
+            return;
+        }
+
+        carregando = true;
+
+        try
+        {
+            endereco = await Http.GetFromJsonAsync<Endereco>(
+                $"https://viacep.com.br/ws/{cepLimpo}/json/");
+
+            if (endereco == null || endereco.Erro)
+            {
+                endereco = null;
+                erro = "CEP não encontrado.";
+            }
+        }
+        catch (Exception)
+        {
+            erro = "Erro ao consultar o CEP. Tente novamente.";
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    public class Endereco
+    {
+        public string? Cep { get; set; }
+        public string? Logradouro { get; set; }
+        public string? Complemento { get; set; }
+        public string? Bairro { get; set; }
+        public string? Localidade { get; set; }
+        public string? Uf { get; set; }
+        public string? Ddd { get; set; }
+        public bool Erro { get; set; }
+    }
+}
